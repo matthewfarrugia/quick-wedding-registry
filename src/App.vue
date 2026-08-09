@@ -276,7 +276,7 @@ const gifts: GiftInfo[] = [
   max-width: 1200px;
 
   position: sticky;
-  top: 0;
+  top: 0.25rem;
   z-index: 10;
 
   &__text {
