@@ -71,13 +71,6 @@ button {
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
 
-  &:focus {
-    outline: none;
-  }
-  &:disabled {
-    pointer-events: none;
-  }
-
   &.btn-default {
     background-color: var(--btn-default);
     color: black;
@@ -102,4 +95,17 @@ button {
   &.btn-primary:active {
     background-color: var(--btn-hover);
   }
+
+  &:focus {
+    outline: none;
+  }
+
+  &:disabled {
+    background-color: var(--btn-default);
+    color: #999;
+    cursor: not-allowed;
+    pointer-events: none;
+    opacity: 0.6;
+  }
+
 }

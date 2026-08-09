@@ -8,8 +8,8 @@
         <slot />
       </div>
       <div class="actions">
-        <button class="btn-default" @click="confirm(true)">Add another gift</button>
-        <button class="btn-primary" @click="confirm(false)">Proceed to PayPal</button>
+        <button class="btn-default" @click="close()">{{ pledge <= 0 ? 'Cancel' : 'Add another gift' }}</button>
+        <button :disabled="pledge <= 0" class="btn-primary" @click="confirm()">Proceed to PayPal</button>
       </div>
     </ModalContent>
   </ModalRoot>
@@ -17,8 +17,10 @@
 
 <script setup lang="ts">
 import { ModalRoot, ModalContent, ModalTitle, ModalDescription, useModalContext } from '@kolirt/vue-modal'
+import { inject, type Ref } from 'vue'
 defineProps<{ title: string; description: string }>()
-const { confirm } = useModalContext<boolean>()
+const { close, confirm } = useModalContext<void>()
+const pledge = inject<Ref<number>>('pledge')!
 </script>
 
 <style lang="less" scoped>

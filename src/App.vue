@@ -33,7 +33,7 @@
 
 <script setup lang="ts">
 import { ModalOverlay, ModalTarget, openModal, type DefineGroups } from '@kolirt/vue-modal'
-import { h, ref, computed } from 'vue'
+import { h, ref, computed, provide } from 'vue'
 import AddToBasket from './components/AddToBasket.vue'
 import Gift from './components/Gift.vue'
 import ModalContainer from './components/ModalContainer.vue'
@@ -50,6 +50,16 @@ type BasketItem = {
 
 const basket = ref<BasketItem[]>([])
 const totalAmount = computed(() => Math.max(0, basket.value.reduce((total, item) => total + item.pledge, 0)))
+const currentPledge = ref<null|string>(null)
+const currentPledgeAmount = computed({
+  get: () => basket.value.find(item => item.giftname === currentPledge.value)?.pledge ?? 0,
+  set: (newPledge: number) => {
+    const item = basket.value.find(item => item.giftname === currentPledge.value)
+    if (!item) throw new Error('Item not found in basket')
+    item.pledge = newPledge
+  }
+})
+provide('pledge', currentPledgeAmount)
 
 function isAddedToBasket(giftname: string): boolean {
   return basket.value.some(item => item.giftname === giftname)
@@ -72,20 +82,17 @@ function handleClick(gift: GiftInfo) {
 
 async function presentModal(gift: GiftInfo) {
   const pledge = gift.contribution ? 0 : gift.amount
+  currentPledge.value = gift.name
   basket.value.push({ giftname: gift.name, pledge })
   openModal(
     h(ModalContainer, { title: gift.name, description: gift.description }, () => [
       h(AddToBasket, { gift, onContributionChange: (newContribution: number) => {
-        const item = basket.value.find(item => item.giftname === gift.name)
-        if (!item) throw new Error('Item not found in basket')
-        item.pledge = newContribution
+        currentPledgeAmount.value = newContribution
       }})
     ]),
     { group: 'default' }
-  ).then((continueGifting) => {
-    if (!continueGifting) {
-      navigateToPaypal()
-    }
+  ).then(() => {
+    navigateToPaypal()
   }).catch(() => {
     const index = basket.value.findIndex(item => item.giftname === gift.name)
     if (index !== -1 && basket.value[index].pledge === 0) {
@@ -99,7 +106,6 @@ function navigateToPaypal() {
   const paypalUrl = `https://paypal.me/lauramattwedding/` + (giftAmount > 0 ? giftAmount : '')
   window.open(paypalUrl, '_self')
 }
-
 
 const gifts: GiftInfo[] = [
   {
