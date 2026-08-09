@@ -105,7 +105,7 @@ const gifts: GiftInfo[] = [
   {
     name: 'Our trip to Iceland',
     description: 'Contribute to our honeymoon in Iceland!',
-    image: new URL('./assets/iceland.webp', import.meta.url).href,
+    image: new URL('./assets/iceland.jpeg', import.meta.url).href,
     amount: 0,
     contribution: true,
   },
