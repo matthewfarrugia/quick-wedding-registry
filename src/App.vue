@@ -153,7 +153,7 @@ const gifts: GiftInfo[] = [
     amount: 100,
   },
   {
-    name: 'Dinner back at home',
+    name: 'Dinner in Brighton',
     description: 'Lovely Jubbly',
     image: new URL('./assets/dinner.jpg', import.meta.url).href,
     amount: 50,
