@@ -94,7 +94,7 @@ watch(contribution, (newContribution) => {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.5rem;
+  padding: 0.2rem 0.5rem;
   border: 1px solid #ccc;
   border-radius: 0.25rem;
   max-width: 100%;
