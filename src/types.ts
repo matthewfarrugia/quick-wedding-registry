@@ -6,3 +6,8 @@ export type Gift = {
   amount: number
   contribution?: boolean
 }
+
+export type BasketItem = {
+  giftname: string
+  contribution: number
+}

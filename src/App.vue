@@ -23,7 +23,7 @@
           Contribution: £{{ totalAmount }}
         </template>
       </p>
-      <button v-if="totalAmount > 0" class="btn-primary" @click="navigateToPaypal()">Proceed to PayPal</button>
+      <button v-if="totalAmount > 0" class="btn-primary" @click="handleCheckout()">Proceed to PayPal</button>
     </div>
     <div class="gifts">
       <Gift v-for="gift in gifts" :key="gift.name" :gift="gift" :contributed="isAddedToBasket(gift.name)" @click="handleClick(gift)" />
@@ -33,33 +33,36 @@
 
 <script setup lang="ts">
 import { ModalOverlay, ModalTarget, openModal, type DefineGroups } from '@kolirt/vue-modal'
-import { h, ref, computed, provide } from 'vue'
+import { computed, h, onMounted, provide, ref } from 'vue'
 import AddToBasket from './components/AddToBasket.vue'
 import Gift from './components/Gift.vue'
 import ModalContainer from './components/ModalContainer.vue'
-import type { Gift as GiftInfo } from './types'
+import { logEvent } from './firebase'
+import type { BasketItem, Gift as GiftInfo } from './types'
+import { useDebounce } from './useDebounce.ts'
+import { useGiftAnalytics } from './useGiftAnalytics'
 
 declare module '@kolirt/vue-modal' {
   interface ModalGroupRegistry extends DefineGroups<['default']> {}
 }
 
-type BasketItem = {
-  giftname: string
-  pledge: number
-}
-
 const basket = ref<BasketItem[]>([])
-const totalAmount = computed(() => Math.max(0, basket.value.reduce((total, item) => total + item.pledge, 0)))
-const currentPledge = ref<null|string>(null)
-const currentPledgeAmount = computed({
-  get: () => basket.value.find(item => item.giftname === currentPledge.value)?.pledge ?? 0,
-  set: (newPledge: number) => {
-    const item = basket.value.find(item => item.giftname === currentPledge.value)
+const totalAmount = computed(() => Math.max(0, basket.value.reduce((total, item) => total + item.contribution, 0)))
+const currentContribution = ref<null|string>(null)
+const currentContributionAmount = computed({
+  get: () => basket.value.find(item => item.giftname === currentContribution.value)?.contribution ?? 0,
+  set: (newContribution: number) => {
+    const item = basket.value.find(item => item.giftname === currentContribution.value)
     if (!item) throw new Error('Item not found in basket')
-    item.pledge = newPledge
+    item.contribution = newContribution
   }
 })
-provide('pledge', currentPledgeAmount)
+provide('contribution', currentContributionAmount)
+
+const { logGiftSelected, logGiftRemoved, logContributionUpdated, logGiftCheckedOut, logCheckout } = useGiftAnalytics(basket)
+onMounted(() => {
+  logEvent('screen_view', { page_title: document.title, page_location: window.location.href, page_path: window.location.pathname })
+})
 
 function isAddedToBasket(giftname: string): boolean {
   return basket.value.some(item => item.giftname === giftname)
@@ -74,34 +77,44 @@ function removeFromBasket(giftname: string) {
 
 function handleClick(gift: GiftInfo) {
   if (isAddedToBasket(gift.name)) {
+    logGiftRemoved(gift)
     removeFromBasket(gift.name)
   } else {
+    logGiftSelected(gift)
     presentModal(gift)
   }
 }
 
+const debouncedContributionUpdated = useDebounce((gift: GiftInfo, newContribution: number) => {
+  logContributionUpdated(gift, newContribution)
+}, 500)
+
 async function presentModal(gift: GiftInfo) {
-  const pledge = gift.contribution ? 0 : gift.amount
-  currentPledge.value = gift.name
-  basket.value.push({ giftname: gift.name, pledge })
+  const contribution = gift.contribution ? 0 : gift.amount
+  currentContribution.value = gift.name
+  basket.value.push({ giftname: gift.name, contribution })
   openModal(
     h(ModalContainer, { title: gift.name, description: gift.description }, () => [
       h(AddToBasket, { gift, onContributionChange: (newContribution: number) => {
-        currentPledgeAmount.value = newContribution
+        debouncedContributionUpdated(gift, newContribution)
+        currentContributionAmount.value = newContribution
       }})
     ]),
     { group: 'default' }
   ).then(() => {
-    navigateToPaypal()
+    handleCheckout()
   }).catch(() => {
     const index = basket.value.findIndex(item => item.giftname === gift.name)
-    if (index !== -1 && basket.value[index].pledge === 0) {
+    if (index !== -1 && basket.value[index].contribution === 0) {
+      logGiftRemoved(gift)
       basket.value.splice(index, 1)
     }
   })
 }
 
-function navigateToPaypal() {
+function handleCheckout() {
+  basket.value.forEach(item => logGiftCheckedOut(item.giftname))
+  logCheckout()
   const giftAmount = totalAmount.value
   const paypalUrl = `https://paypal.me/lauramattwedding/` + (giftAmount > 0 ? giftAmount : '')
   window.open(paypalUrl, '_self')

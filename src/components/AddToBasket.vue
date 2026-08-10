@@ -6,16 +6,16 @@
     </p>
     <div v-else>
       <p class="description">Help contribute to {{ gift.name }}</p>
-      <div class="pledge">
-        <label for="pledge-input">Your contribution:</label>
+      <div class="contribution">
+        <label for="contribution-input">Your contribution:</label>
         <div class="form-group">
           <span class="currency">£</span>
           <input
-            id="pledge-input"
+            id="contribution-input"
             type="text"
             pattern="[0-9]*"
             v-model.number="contribution"
-            class="pledge-input"
+            class="contribution-input"
           />
         </div>
       </div>
@@ -63,7 +63,7 @@ watch(contribution, (newContribution) => {
     color: var(--text);
     font-style: italic;
   }
-  .pledge {
+  .contribution {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -77,7 +77,7 @@ watch(contribution, (newContribution) => {
       pointer-events: none;
       cursor: default;
     }
-    .pledge-input {
+    .contribution-input {
       width: 100px;
       max-width: 100%;
       min-width: 0;

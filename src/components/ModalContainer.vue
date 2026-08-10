@@ -8,8 +8,8 @@
         <slot />
       </div>
       <div class="actions">
-        <button class="btn-default" @click="close()">{{ pledge <= 0 ? 'Cancel' : 'Add another gift' }}</button>
-        <button :disabled="pledge <= 0" class="btn-primary" @click="confirm()">Proceed to PayPal</button>
+        <button class="btn-default" @click="close()">{{ contribution <= 0 ? 'Cancel' : 'Add another gift' }}</button>
+        <button :disabled="contribution <= 0" class="btn-primary" @click="confirm()">Proceed to PayPal</button>
       </div>
     </ModalContent>
   </ModalRoot>
@@ -20,7 +20,7 @@ import { ModalRoot, ModalContent, ModalTitle, ModalDescription, useModalContext 
 import { inject, type Ref } from 'vue'
 defineProps<{ title: string; description: string }>()
 const { close, confirm } = useModalContext<void>()
-const pledge = inject<Ref<number>>('pledge')!
+const contribution = inject<Ref<number>>('contribution')!
 </script>
 
 <style lang="less" scoped>
