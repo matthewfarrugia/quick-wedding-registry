@@ -19,7 +19,9 @@ if (!!import.meta.env.VITE_FIREBASE_API_KEY) {
     appId: import.meta.env.VITE_FIREBASE_APP_ID,
     measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
   })
-  analytics = initializeAnalytics(app, { config: { debug_mode: import.meta.env.DEV } })
+  startAnalytics(app).catch((error) => {
+    if (import.meta.env.DEV) console.error('Analytics init failed', error)
+  })
 
   if (import.meta.env.VITE_FIREBASE_APPCHECK_SITE_KEY) {
     if (import.meta.env.DEV) (self as any).FIREBASE_APPCHECK_DEBUG_TOKEN = true
@@ -41,8 +43,24 @@ function setup() {
   })
 }
 
+function whenOnline() {
+  if (navigator.onLine) return Promise.resolve()
+  return new Promise<void>((resolve) => window.addEventListener('online', () => resolve(), { once: true }))
+}
+
+const queued: { name: string, params: Record<string, any> }[] = []
+async function startAnalytics(firebaseApp: ReturnType<typeof initializeApp>) {
+  await whenOnline()
+  analytics = initializeAnalytics(firebaseApp, { config: { debug_mode: import.meta.env.DEV } })
+  for (const { name, params } of queued.splice(0)) firebaseLogEvent(analytics, name, params)
+}
+
 function logEvent(eventName: string, eventParams: Record<string, any> = {}) {
-  if (!analytics) return 
+  if (!app) return
+  if (!analytics) {
+    if (queued.length < 50) queued.push({ name: eventName, params: eventParams })
+    return
+  }
   firebaseLogEvent(analytics, eventName, eventParams)
 }
 
