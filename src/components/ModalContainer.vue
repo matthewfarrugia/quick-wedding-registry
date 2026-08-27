@@ -12,9 +12,10 @@
           Thank you for your very generous contribution, we can only accept contributions up to £250. <br>Please chat to us directly for Bacs transfer details
         </p>
         <template v-else>
+          <button v-if="monzoPaymentIsPossible && contribution < 500" :disabled="contribution <= 0" class="btn-primary" @click="confirm('monzo')">Send Via Apple/Google Pay (Monzo)</button>
+          <button :disabled="contribution <= 0" class="btn-primary" @click="confirm('paypal')">Send Via PayPal</button>
+          <p class="actions__message small">Please select "friends/family" when contributing via PayPal</p>
           <button class="btn-default" @click="close()">{{ contribution <= 0 ? 'Cancel' : 'Add another gift' }}</button>
-          <button v-if="monzoPaymentIsPossible && contribution < 500" :disabled="contribution <= 0" class="btn-primary" @click="confirm('monzo')">Apple/Google Pay via Monzo</button>
-          <button :disabled="contribution <= 0" class="btn-primary" @click="confirm('paypal')">Via PayPal</button>
         </template>
       </div>
     </ModalContent>
@@ -94,6 +95,9 @@ const monzoPaymentIsPossible = inject<ComputedRef<boolean>>('monzoPaymentIsPossi
     font-size: 0.9rem;
     color: var(--text);
     text-align: center;
+    &.small {
+      font-size: 0.8rem;
+    }
   }
 }
 </style>
