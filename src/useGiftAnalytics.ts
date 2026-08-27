@@ -22,9 +22,9 @@ export function useGiftAnalytics(basket: Ref<BasketItem[]>) {
     logEvent('gift_checked_out', { gift_name: giftName, contribution: item?.contribution })
   }
 
-  function logCheckout() {
+  function logCheckout(method: 'monzo' | 'paypal' = 'paypal') {
     const totalContribution = basket.value.reduce((total, item) => total + item.contribution, 0)
-    logEvent('checkout', { total_contribution: totalContribution })
+    logEvent('checkout', { total_contribution: totalContribution, method })
   }
 
   return { 

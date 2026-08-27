@@ -23,7 +23,7 @@
           Contribution: £{{ totalAmount }}
         </template>
       </p>
-      <button v-if="totalAmount > 0" class="btn-primary" @click="handleCheckout()">Proceed to PayPal</button>
+      <button v-if="totalAmount > 0" class="btn-primary" @click="presentLastGiftModal()">Send gift</button>
     </div>
     <div class="gifts">
       <Gift v-for="gift in gifts" :key="gift.name" :gift="gift" :contributed="isAddedToBasket(gift.name)" @click="handleClick(gift)" />
@@ -37,7 +37,7 @@ import { computed, h, onMounted, provide, ref } from 'vue'
 import AddToBasket from './components/AddToBasket.vue'
 import Gift from './components/Gift.vue'
 import ModalContainer from './components/ModalContainer.vue'
-import { logEvent } from './firebase'
+import { logEvent, recordMonzoGift, readMonzoLedger, type Ledger } from './firebase'
 import type { BasketItem, Gift as GiftInfo } from './types'
 import { useDebounce } from './useDebounce.ts'
 import { useGiftAnalytics } from './useGiftAnalytics'
@@ -58,10 +58,30 @@ const currentContributionAmount = computed({
   }
 })
 provide('contribution', currentContributionAmount)
+const ledgers = ref<{ [key: string]: Ledger | null }>({})
+
+const bestMonzoAccount = computed<string | null>(() => {
+  if (Object.keys(ledgers.value).length === 0) return null
+  for (const [accountName, ledger] of Object.entries(ledgers.value)) {
+    if (ledger && (ledger.total + totalAmount.value) < 1000) {
+      return accountName
+    }
+  }
+  return null
+})
+provide('monzoPaymentIsPossible', computed(() => bestMonzoAccount.value !== null))
 
 const { logGiftSelected, logGiftRemoved, logContributionUpdated, logGiftCheckedOut, logCheckout } = useGiftAnalytics(basket)
 onMounted(() => {
   logEvent('screen_view', { page_title: document.title, page_location: window.location.href, page_path: window.location.pathname })
+  for (const account of ['matthewlouisfarrugia', 'lauragrace']) {
+    readMonzoLedger(account).then(ledger => {
+      ledgers.value[account] = ledger
+      console.log(`Monzo total for ${account}:`, ledger.total)
+    }).catch(error => {
+      console.error(`Error reading Monzo ledger for ${account}:`, error)
+    })
+  }
 })
 
 function isAddedToBasket(giftname: string): boolean {
@@ -85,6 +105,14 @@ function handleClick(gift: GiftInfo) {
   }
 }
 
+function presentLastGiftModal() {
+  const lastGift = basket.value[basket.value.length - 1]
+  if (!lastGift) return
+  const giftInfo = gifts.find(gift => gift.name === lastGift.giftname)
+  if (!giftInfo) return
+  presentModal(giftInfo)
+}
+
 const debouncedContributionUpdated = useDebounce((gift: GiftInfo, newContribution: number) => {
   logContributionUpdated(gift, newContribution)
 }, 500)
@@ -93,7 +121,7 @@ async function presentModal(gift: GiftInfo) {
   const contribution = gift.contribution ? 0 : gift.amount
   currentContribution.value = gift.name
   basket.value.push({ giftname: gift.name, contribution })
-  openModal(
+  openModal<'monzo' | 'paypal'>(
     h(ModalContainer, { title: gift.name, description: gift.description }, () => [
       h(AddToBasket, { gift, onContributionChange: (newContribution: number) => {
         debouncedContributionUpdated(gift, newContribution)
@@ -101,8 +129,8 @@ async function presentModal(gift: GiftInfo) {
       }})
     ]),
     { group: 'default' }
-  ).then(() => {
-    handleCheckout()
+  ).then((method) => {
+    handleCheckout(method)
   }).catch(() => {
     const index = basket.value.findIndex(item => item.giftname === gift.name)
     if (index !== -1 && basket.value[index].contribution === 0) {
@@ -112,12 +140,26 @@ async function presentModal(gift: GiftInfo) {
   })
 }
 
-function handleCheckout() {
+async function handleCheckout(method: 'monzo' | 'paypal') {
   basket.value.forEach(item => logGiftCheckedOut(item.giftname))
-  logCheckout()
+  logCheckout(method)
   const giftAmount = totalAmount.value
+  if (method === 'monzo' && bestMonzoAccount.value) {
+    await recordMonzoGift(giftAmount, bestMonzoAccount.value) // best effort, they might not have completed the payment, but we can record it anyway
+    window.open(makeMonzoUrl(giftAmount, bestMonzoAccount.value), '_self')
+    return
+  }
+
   const paypalUrl = `https://paypal.me/lauramattwedding/` + (giftAmount > 0 ? giftAmount : '')
   window.open(paypalUrl, '_self')
+}
+
+function makeMonzoUrl(amount: number, account: string) {
+  const url = new URL(`https://monzo.me/${account}/` + (amount > 0 ? amount : ''))
+  const params = new URLSearchParams()
+  params.set('account_type', 'personal')
+  params.set('d', 'Contributing to Laura & Matt\'s wedding gift registry')
+  return url.toString() + '?' + params.toString()
 }
 
 const gifts: GiftInfo[] = [

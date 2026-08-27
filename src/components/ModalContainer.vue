@@ -8,8 +8,14 @@
         <slot />
       </div>
       <div class="actions">
-        <button class="btn-default" @click="close()">{{ contribution <= 0 ? 'Cancel' : 'Add another gift' }}</button>
-        <button :disabled="contribution <= 0" class="btn-primary" @click="confirm()">Proceed to PayPal</button>
+        <p v-if="contribution > 250" class="actions__message">
+          Thank you for your very generous contribution, we can only accept contributions up to £250. <br>Please chat to us directly for Bacs transfer details
+        </p>
+        <template v-else>
+          <button class="btn-default" @click="close()">{{ contribution <= 0 ? 'Cancel' : 'Add another gift' }}</button>
+          <button v-if="monzoPaymentIsPossible && contribution < 500" :disabled="contribution <= 0" class="btn-primary" @click="confirm('monzo')">Apple/Google Pay via Monzo</button>
+          <button :disabled="contribution <= 0" class="btn-primary" @click="confirm('paypal')">Via PayPal</button>
+        </template>
       </div>
     </ModalContent>
   </ModalRoot>
@@ -17,10 +23,11 @@
 
 <script setup lang="ts">
 import { ModalRoot, ModalContent, ModalTitle, ModalDescription, useModalContext } from '@kolirt/vue-modal'
-import { inject, type Ref } from 'vue'
+import { inject, type ComputedRef, type Ref } from 'vue'
 defineProps<{ title: string; description: string }>()
-const { close, confirm } = useModalContext<void>()
+const { close, confirm } = useModalContext<'monzo' | 'paypal'>()
 const contribution = inject<Ref<number>>('contribution')!
+const monzoPaymentIsPossible = inject<ComputedRef<boolean>>('monzoPaymentIsPossible')!
 </script>
 
 <style lang="less" scoped>
@@ -69,7 +76,7 @@ const contribution = inject<Ref<number>>('contribution')!
 
 .actions {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   justify-content: center;
   gap: 1rem;
   margin-top: 1rem;
@@ -81,6 +88,12 @@ const contribution = inject<Ref<number>>('contribution')!
     button {
       width: 100%;
     }
+  }
+  &__message {
+    margin: 0;
+    font-size: 0.9rem;
+    color: var(--text);
+    text-align: center;
   }
 }
 </style>

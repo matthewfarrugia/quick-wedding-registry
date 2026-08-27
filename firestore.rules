@@ -1,0 +1,52 @@
+rules_version = '2';
+
+// Not deployed by CI: paste into the Firebase console (Firestore Database -> Rules)
+// and Publish, or run `firebase deploy --only firestore:rules`.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // One running ledger per Monzo account. The site is static, so guests write
+    // it themselves: App Check attests the request came from our own site, and a
+    // guest may only push a total up, never down, and only by one plausible gift.
+    match /totals/{account} {
+
+      function validLedger(before) {
+        return request.resource.data.keys().hasOnly(['total', 'gifts', 'updatedAt'])
+               && request.resource.data.total is number
+               && request.resource.data.gifts is number
+               && request.resource.data.updatedAt == request.time
+               && request.resource.data.total > before.total
+               && request.resource.data.total <= before.total + 1000
+               && request.resource.data.gifts == before.gifts + 1;
+      }
+
+      function ours() {
+        return account in ['matthewlouisfarrugia', 'lauragrace'];
+      }
+
+      // Totals are shown on the page, so they are public to read.
+      allow read: if ours();
+
+      allow create: if ours()
+                    && request.app != null
+                    && request.auth != null
+                    && validLedger({'total': 0, 'gifts': 0});
+
+      // get(field, default) so a doc hand-created in the console without these
+      // fields still validates instead of erroring out.
+      allow update: if ours()
+                    && request.app != null
+                    && request.auth != null
+                    && validLedger({
+                         'total': resource.data.get('total', 0),
+                         'gifts': resource.data.get('gifts', 0)
+                       });
+
+      allow delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
