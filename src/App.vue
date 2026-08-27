@@ -158,7 +158,8 @@ function makeMonzoUrl(amount: number, account: string) {
   const url = new URL(`https://monzo.me/${account}/` + (amount > 0 ? amount : ''))
   const params = new URLSearchParams()
   params.set('account_type', 'personal')
-  params.set('d', 'Contributing to Laura & Matt\'s wedding gift registry')
+  const gifts = basket.value.map(item => item.giftname).join(', ')
+  params.set('d', gifts.substring(0, 100))
   return url.toString() + '?' + params.toString()
 }
 
